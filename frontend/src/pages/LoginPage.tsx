@@ -1,9 +1,33 @@
-import { useState } from 'react'
+import { FormEvent, useState } from 'react'
 import { FiEye, FiEyeOff } from 'react-icons/fi'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { getApiErrorMessage } from '../lib/apiError'
+import { login } from '../lib/authApi'
 
 export function LoginPage() {
+  const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setErrorMessage('')
+    setIsSubmitting(true)
+
+    try {
+      const result = await login({ email, password })
+      localStorage.setItem('accessToken', result.accessToken)
+      localStorage.setItem('currentUser', JSON.stringify(result.user))
+      navigate('/landing', { replace: true })
+    } catch (error) {
+      setErrorMessage(getApiErrorMessage(error))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#020F1F] px-6 py-10 text-[#E6EDF3]">
@@ -23,7 +47,7 @@ export function LoginPage() {
             Enter your credentials to access the suite
           </p>
 
-          <form className="mt-7 space-y-4">
+          <form className="mt-7 space-y-4" onSubmit={handleSubmit}>
             <div>
               <label
                 htmlFor="email"
@@ -35,6 +59,9 @@ export function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="coach@proelite.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
                 className="w-full rounded-md border border-[#2A4A66] bg-[#E6EDF3] px-4 py-3 text-sm text-[#0A2236] placeholder:text-[#5F7389] outline-none transition focus:border-[#1ABC9C] focus:ring-2 focus:ring-[#1ABC9C]/35"
               />
             </div>
@@ -54,6 +81,9 @@ export function LoginPage() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
                   className="w-full rounded-md border border-[#2A4A66] bg-[#E6EDF3] px-4 py-3 pr-11 text-sm text-[#0A2236] placeholder:text-[#5F7389] outline-none transition focus:border-[#1ABC9C] focus:ring-2 focus:ring-[#1ABC9C]/35"
                 />
                 <button
@@ -74,11 +104,18 @@ export function LoginPage() {
               </button>
             </div>
 
+            {errorMessage ? (
+              <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {errorMessage}
+              </p>
+            ) : null}
+
             <button
               type="submit"
-              className="mt-1 w-full rounded-md bg-[#1ABC9C] py-3 text-sm font-semibold text-[#020F1F] transition hover:bg-[#16A085]"
+              disabled={isSubmitting}
+              className="mt-1 w-full rounded-md bg-[#1ABC9C] py-3 text-sm font-semibold text-[#020F1F] transition hover:bg-[#16A085] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Sign In to Dashboard
+              {isSubmitting ? 'Signing In...' : 'Sign In to Dashboard'}
             </button>
           </form>
 
