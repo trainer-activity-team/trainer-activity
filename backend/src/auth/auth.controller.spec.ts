@@ -6,6 +6,7 @@ describe('AuthController', () => {
   let controller: AuthController;
   const authServiceMock = {
     login: jest.fn(),
+    register: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -48,6 +49,40 @@ describe('AuthController', () => {
     expect(result).toEqual({
       accessToken: 'jwt-token',
       user: { id: 1, email: 'john@doe.fr' },
+    });
+  });
+
+  it('should call authService.register', async () => {
+    authServiceMock.register.mockResolvedValue({
+      message: 'Compte cree avec succes.',
+      user: {
+        id: 2,
+        email: 'jane@doe.fr',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        roleId: 1,
+      },
+    });
+
+    const payload = {
+      email: 'jane@doe.fr',
+      password: 'StrongPass1',
+      firstName: 'Jane',
+      lastName: 'Doe',
+    };
+
+    const result = await controller.register(payload);
+
+    expect(authServiceMock.register).toHaveBeenCalledWith(payload);
+    expect(result).toEqual({
+      message: 'Compte cree avec succes.',
+      user: {
+        id: 2,
+        email: 'jane@doe.fr',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        roleId: 1,
+      },
     });
   });
 });

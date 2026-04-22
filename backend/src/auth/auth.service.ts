@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   InternalServerErrorException,
   UnauthorizedException,
@@ -7,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
@@ -54,6 +56,44 @@ export class AuthService {
 
       throw new InternalServerErrorException(
         "Erreur interne lors de l'authentification.",
+      );
+    }
+  }
+
+  async register(registerDto: RegisterDto) {
+    try {
+      const existingUser = await this.usersService.findByEmail(registerDto.email);
+
+      if (existingUser) {
+        throw new ConflictException('Cet email est deja utilise.');
+      }
+
+      const hashedPassword = await argon2.hash(registerDto.password);
+      const createdUser = await this.usersService.create({
+        email: registerDto.email,
+        password: hashedPassword,
+        firstName: registerDto.firstName,
+        lastName: registerDto.lastName,
+        roleId: 1,
+      });
+
+      return {
+        message: 'Compte cree avec succes.',
+        user: {
+          id: createdUser.id,
+          email: createdUser.email,
+          firstName: createdUser.firstName,
+          lastName: createdUser.lastName,
+          roleId: createdUser.roleId,
+        },
+      };
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        "Erreur interne lors de l'inscription.",
       );
     }
   }

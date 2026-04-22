@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -10,6 +11,7 @@ import { AuthService } from './auth.service';
 
 jest.mock('argon2', () => ({
   verify: jest.fn(),
+  hash: jest.fn(),
 }));
 
 describe('AuthService', () => {
@@ -17,6 +19,7 @@ describe('AuthService', () => {
 
   const usersServiceMock = {
     findByEmail: jest.fn(),
+    create: jest.fn(),
   };
 
   const jwtServiceMock = {
@@ -104,5 +107,64 @@ describe('AuthService', () => {
     await expect(
       service.login({ email: 'john@doe.fr', password: 'password123' }),
     ).rejects.toBeInstanceOf(InternalServerErrorException);
+  });
+
+  it('should register user with hashed password and roleId 1', async () => {
+    usersServiceMock.findByEmail.mockResolvedValue(null);
+    (argon2.hash as jest.Mock).mockResolvedValue('hashedPassword');
+    usersServiceMock.create.mockResolvedValue({
+      id: 10,
+      email: 'new@doe.fr',
+      firstName: 'New',
+      lastName: 'User',
+      roleId: 1,
+    });
+
+    const result = await service.register({
+      email: 'new@doe.fr',
+      password: 'StrongPass1',
+      firstName: 'New',
+      lastName: 'User',
+    });
+
+    expect(usersServiceMock.findByEmail).toHaveBeenCalledWith('new@doe.fr');
+    expect(argon2.hash).toHaveBeenCalledWith('StrongPass1');
+    expect(usersServiceMock.create).toHaveBeenCalledWith({
+      email: 'new@doe.fr',
+      password: 'hashedPassword',
+      firstName: 'New',
+      lastName: 'User',
+      roleId: 1,
+    });
+    expect(result).toEqual({
+      message: 'Compte cree avec succes.',
+      user: {
+        id: 10,
+        email: 'new@doe.fr',
+        firstName: 'New',
+        lastName: 'User',
+        roleId: 1,
+      },
+    });
+  });
+
+  it('should throw ConflictException when email already exists', async () => {
+    usersServiceMock.findByEmail.mockResolvedValue({
+      id: 1,
+      email: 'existing@doe.fr',
+      password: 'hashedPassword',
+      roleId: 1,
+      firstName: 'Existing',
+      lastName: 'User',
+    });
+
+    await expect(
+      service.register({
+        email: 'existing@doe.fr',
+        password: 'StrongPass1',
+        firstName: 'Existing',
+        lastName: 'User',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });

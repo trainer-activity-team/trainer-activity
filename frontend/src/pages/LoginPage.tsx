@@ -1,4 +1,5 @@
-import { FormEvent, useState } from 'react'
+import { useState } from 'react'
+import type { FormEvent } from 'react'
 import { FiEye, FiEyeOff } from 'react-icons/fi'
 import { Link, useNavigate } from 'react-router-dom'
 import { getApiErrorMessage } from '../lib/apiError'

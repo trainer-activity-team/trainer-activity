@@ -7,6 +7,7 @@ describe('UsersService', () => {
   const prismaServiceMock = {
     user: {
       findUnique: jest.fn(),
+      create: jest.fn(),
     },
   };
 
@@ -50,5 +51,32 @@ describe('UsersService', () => {
     await expect(service.findByEmail('john@doe.fr')).rejects.toThrow(
       "Erreur lors de la récupération de l'utilisateur.",
     );
+  });
+
+  it('should create a user', async () => {
+    const mockedUser = {
+      id: 2,
+      email: 'jane@doe.fr',
+      password: 'hashedPassword',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      roleId: 1,
+    };
+    prismaServiceMock.user.create.mockResolvedValue(mockedUser);
+
+    const payload = {
+      email: 'jane@doe.fr',
+      password: 'hashedPassword',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      roleId: 1,
+    };
+
+    const result = await service.create(payload);
+
+    expect(prismaServiceMock.user.create).toHaveBeenCalledWith({
+      data: payload,
+    });
+    expect(result).toEqual(mockedUser);
   });
 });
