@@ -59,10 +59,3 @@ Application full-stack pour le suivi et la gestion d’activités côté formate
 
 L’API NestJS écoute par défaut sur le port **3000** ;
 Le frontend écoute par défaut sur le port **5173**.
-
-
-Test
-
-
-
-TEST 12222222
