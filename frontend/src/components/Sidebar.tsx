@@ -1,13 +1,11 @@
 import { NavLink } from 'react-router-dom'
 import type { IconType } from 'react-icons'
 import {
-  FiBarChart2,
   FiBriefcase,
-  FiCalendar,
-  FiClipboard,
   FiLogOut,
   FiGrid,
   FiHelpCircle,
+  FiFileText,
   FiSettings,
 } from 'react-icons/fi'
 import { useAuth } from '../contexts/AuthContext'
@@ -21,9 +19,7 @@ type NavItem = {
 const MAIN_NAV: NavItem[] = [
   { to: '/institutions', label: 'Dashboard', icon: FiGrid },
   { to: '/institutions', label: 'Etablissements', icon: FiBriefcase },
-  { to: '/activity', label: 'Prestations', icon: FiClipboard },
-  { to: '/analytics', label: 'Analyses', icon: FiBarChart2 },
-  { to: '/schedule', label: 'Agenda', icon: FiCalendar },
+  { to: '/contrats', label: 'Contrats', icon: FiFileText },
 ]
 
 const BOTTOM_NAV: NavItem[] = [

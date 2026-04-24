@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { ContratsPage } from './pages/ContratsPage'
 import { InstitutionsPage } from './pages/InstitutionsPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -11,6 +12,7 @@ function LandingRedirect() {
   return <Navigate to={token ? '/institutions' : '/login'} replace />
 }
 
+
 function App() {
   return (
     <Routes>
@@ -22,6 +24,7 @@ function App() {
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route path="/institutions" element={<InstitutionsPage />} />
+        <Route path="/contrats" element={<ContratsPage />} />
       </Route>
       <Route path="*" element={<LandingRedirect />} />
     </Routes>
