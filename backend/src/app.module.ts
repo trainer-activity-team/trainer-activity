@@ -6,9 +6,17 @@ import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { InstitutionsModule } from './institutions/institutions.module';
 import { ContractsModule } from './contracts/contracts.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
-  imports: [PrismaModule, UsersModule, AuthModule, InstitutionsModule, ContractsModule],
+  imports: [
+    PrismaModule,
+    UsersModule,
+    AuthModule,
+    InstitutionsModule,
+    ContractsModule,
+    HealthModule,
+  ],
   providers: [
     {
       provide: APP_GUARD,
