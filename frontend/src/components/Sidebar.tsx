@@ -5,8 +5,10 @@ import {
   FiBriefcase,
   FiCalendar,
   FiClipboard,
+  FiCreditCard,
   FiGrid,
   FiHelpCircle,
+  FiFileText,
   FiSettings,
 } from 'react-icons/fi'
 
@@ -19,7 +21,9 @@ type NavItem = {
 const MAIN_NAV: NavItem[] = [
   { to: '/landing', label: 'Dashboard', icon: FiGrid },
   { to: '/organizations', label: 'Organisations', icon: FiBriefcase },
+  { to: '/contrats', label: 'Contrats', icon: FiFileText },
   { to: '/activity', label: 'Prestations', icon: FiClipboard },
+  { to: '/billing', label: 'Facturation', icon: FiCreditCard },
   { to: '/analytics', label: 'Analyses', icon: FiBarChart2 },
   { to: '/schedule', label: 'Agenda', icon: FiCalendar },
 ]

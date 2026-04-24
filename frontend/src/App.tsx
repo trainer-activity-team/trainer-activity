@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { ContratsPage } from './pages/ContratsPage'
 import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
 import { OrganizationsPage } from './pages/OrganizationsPage'
@@ -12,6 +13,7 @@ function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/landing" element={<LandingPage />} />
       <Route path="/organizations" element={<OrganizationsPage />} />
+      <Route path="/contrats" element={<ContratsPage />} />
     </Routes>
   )
 }
