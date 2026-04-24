@@ -2,11 +2,13 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { FiEye, FiEyeOff } from 'react-icons/fi'
 import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { getApiErrorMessage } from '../lib/apiError'
 import { login } from '../lib/authApi'
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const { login: saveSession } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -20,9 +22,8 @@ export function LoginPage() {
 
     try {
       const result = await login({ email, password })
-      localStorage.setItem('accessToken', result.accessToken)
-      localStorage.setItem('currentUser', JSON.stringify(result.user))
-      navigate('/landing', { replace: true })
+      saveSession(result)
+      navigate('/institutions', { replace: true })
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error))
     } finally {

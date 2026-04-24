@@ -5,10 +5,12 @@ import {
   FiBriefcase,
   FiCalendar,
   FiClipboard,
+  FiLogOut,
   FiGrid,
   FiHelpCircle,
   FiSettings,
 } from 'react-icons/fi'
+import { useAuth } from '../contexts/AuthContext'
 
 type NavItem = {
   to: string
@@ -17,8 +19,8 @@ type NavItem = {
 }
 
 const MAIN_NAV: NavItem[] = [
-  { to: '/landing', label: 'Dashboard', icon: FiGrid },
-  { to: '/organizations', label: 'Organisations', icon: FiBriefcase },
+  { to: '/institutions', label: 'Dashboard', icon: FiGrid },
+  { to: '/institutions', label: 'Etablissements', icon: FiBriefcase },
   { to: '/activity', label: 'Prestations', icon: FiClipboard },
   { to: '/analytics', label: 'Analyses', icon: FiBarChart2 },
   { to: '/schedule', label: 'Agenda', icon: FiCalendar },
@@ -34,7 +36,7 @@ function NavItemLink({ item }: { item: NavItem }) {
   return (
     <NavLink
       to={item.to}
-      end={item.to === '/landing'}
+      end={item.to === '/institutions'}
       className={({ isActive }) =>
         [
           'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition',
@@ -51,6 +53,8 @@ function NavItemLink({ item }: { item: NavItem }) {
 }
 
 export function Sidebar() {
+  const { logout } = useAuth()
+
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-[#1F3A52] bg-[#071A2B] px-4 py-6 text-[#E6EDF3]">
       <div className="px-2">
@@ -60,14 +64,22 @@ export function Sidebar() {
 
       <nav className="mt-8 flex flex-1 flex-col gap-1">
         {MAIN_NAV.map((item) => (
-          <NavItemLink key={item.to} item={item} />
+          <NavItemLink key={`${item.to}-${item.label}`} item={item} />
         ))}
       </nav>
 
       <div className="mt-4 flex flex-col gap-1 border-t border-[#1F3A52] pt-4">
         {BOTTOM_NAV.map((item) => (
-          <NavItemLink key={item.to} item={item} />
+          <NavItemLink key={`${item.to}-${item.label}`} item={item} />
         ))}
+        <button
+          type="button"
+          onClick={() => logout({ redirectTo: '/login' })}
+          className="mt-2 flex items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium text-[#B8C5D0] transition hover:bg-[#0F2B44] hover:text-[#E6EDF3]"
+        >
+          <FiLogOut className="h-4 w-4" aria-hidden="true" />
+          <span>Se deconnecter</span>
+        </button>
       </div>
     </aside>
   )

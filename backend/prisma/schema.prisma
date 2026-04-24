@@ -40,7 +40,7 @@ model Institution {
   id                  Int            @id @default(autoincrement()) @map("institution_id")
   name                String
   address             String
-  requiresDeclaration Boolean        @map("requires_declaration")
+  requiresDeclaration Boolean        @default(false) @map("requires_declaration")
   classes             Class[]
   contracts           Contract[]
   interventions       Intervention[]
