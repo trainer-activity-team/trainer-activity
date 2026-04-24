@@ -238,6 +238,10 @@ export function ContratsPage() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (formStep === 1) {
+      setFormStep(2)
+      return
+    }
 
     const payload: UpsertContractPayload = {
       institutionId: formValues.institutionId,
@@ -677,7 +681,10 @@ export function ContratsPage() {
             {formStep === 1 ? (
               <button
                 type="button"
-                onClick={() => setFormStep(2)}
+                onClick={(event) => {
+                  event.preventDefault()
+                  setFormStep(2)
+                }}
                 className="inline-flex items-center gap-2 rounded-md bg-[#1ABC9C] px-4 py-2.5 text-sm font-semibold text-[#020F1F] transition hover:bg-[#16A085]"
               >
                 Suivant
