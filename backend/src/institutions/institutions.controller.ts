@@ -9,7 +9,9 @@ import {
   Post,
 } from '@nestjs/common';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
+import { InstitutionIdDto } from './dto/institution-id.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
+import { UpdateInstitutionRequestDto } from './dto/update-institution-request.dto';
 import { InstitutionsService } from './institutions.service';
 
 @Controller('institutions')
@@ -31,16 +33,14 @@ export class InstitutionsController {
     return this.institutionsService.create(payload);
   }
 
-  @Patch(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() payload: UpdateInstitutionDto,
-  ) {
-    return this.institutionsService.update(id, payload);
+  @Patch()
+  update(@Body() payload: UpdateInstitutionRequestDto) {
+    const { institutionId, ...updatePayload } = payload;
+    return this.institutionsService.update(institutionId, updatePayload as UpdateInstitutionDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.institutionsService.remove(id);
+  @Delete()
+  remove(@Body() payload: InstitutionIdDto) {
+    return this.institutionsService.remove(payload.institutionId);
   }
 }

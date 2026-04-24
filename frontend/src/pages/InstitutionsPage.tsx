@@ -60,8 +60,13 @@ export function InstitutionsPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: UpsertInstitutionPayload }) =>
-      updateInstitution(id, payload),
+    mutationFn: ({
+      institutionId,
+      payload,
+    }: {
+      institutionId: number
+      payload: UpsertInstitutionPayload
+    }) => updateInstitution(institutionId, payload),
     onSuccess: () => {
       toast.success('Etablissement mis a jour.')
       void queryClient.invalidateQueries({ queryKey: ['institutions'] })
@@ -134,7 +139,7 @@ export function InstitutionsPage() {
 
   const onSubmit = (values: InstitutionFormValues) => {
     if (editingInstitution) {
-      updateMutation.mutate({ id: editingInstitution.id, payload: values })
+      updateMutation.mutate({ institutionId: editingInstitution.id, payload: values })
       return
     }
 

@@ -14,116 +14,41 @@ import {
   FiTrash2,
   FiUsers,
 } from 'react-icons/fi'
+import { TailSpin } from 'react-loader-spinner'
+import { toast } from 'react-toastify'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Modal } from '../components/Modal'
 import { Sidebar } from '../components/Sidebar'
+import { getApiErrorMessage } from '../lib/apiError'
+import {
+  createContract,
+  deleteContract,
+  getContractLookups,
+  getContracts,
+  updateContract,
+  type ContractRecord,
+  type UpsertContractPayload,
+} from '../lib/contractsApi'
 
-type PricingType = 'Heure' | 'Demi-journee' | 'Journee' | 'Forfait' | 'Libre'
-
-type Contract = {
-  id: string
-  name: string
-  description: string
-  reference: string
-  organization: string
-  organizationSector: string
+type ContractFormValues = {
+  institutionId: number
+  pricingModeId: number
+  contractNumber: string
   startDate: string
   endDate: string
-  plannedVolume: string
-  pricingType: PricingType
+  hourlyVolumePlanned: number
   unitPrice: number
-  notes: string
 }
-
-type ContractFormValues = Omit<Contract, 'id'>
-
-const PRICING_OPTIONS: PricingType[] = ['Heure', 'Demi-journee', 'Journee', 'Forfait', 'Libre']
 
 const EMPTY_FORM: ContractFormValues = {
-  name: '',
-  description: '',
-  reference: '',
-  organization: '',
-  organizationSector: '',
+  institutionId: 0,
+  pricingModeId: 0,
+  contractNumber: '',
   startDate: '',
   endDate: '',
-  plannedVolume: '',
-  pricingType: 'Heure',
+  hourlyVolumePlanned: 0,
   unitPrice: 0,
-  notes: '',
 }
-
-const SEED_CONTRACTS: Contract[] = [
-  {
-    id: 'ctr-1',
-    name: 'Interventions Marketing M1',
-    description: 'Master Marketing',
-    reference: 'CTR-2024-001',
-    organization: 'Spartan Athletics',
-    organizationSector: 'Performance sportive',
-    startDate: '2024-09-01',
-    endDate: '2025-08-31',
-    plannedVolume: '120 h',
-    pricingType: 'Heure',
-    unitPrice: 80,
-    notes: '',
-  },
-  {
-    id: 'ctr-2',
-    name: 'Coaching individuel',
-    description: 'Programme performance',
-    reference: 'CTR-2024-002',
-    organization: 'Elite Academy',
-    organizationSector: 'Coaching prive',
-    startDate: '2024-10-01',
-    endDate: '2025-09-30',
-    plannedVolume: '60 h',
-    pricingType: 'Forfait',
-    unitPrice: 1200,
-    notes: '',
-  },
-  {
-    id: 'ctr-3',
-    name: 'Preparation physique',
-    description: 'Saison 24/25',
-    reference: 'CTR-2024-003',
-    organization: 'Velocity Track',
-    organizationSector: 'Preparation physique',
-    startDate: '2024-08-15',
-    endDate: '2025-06-15',
-    plannedVolume: '80 h',
-    pricingType: 'Heure',
-    unitPrice: 70,
-    notes: '',
-  },
-  {
-    id: 'ctr-4',
-    name: 'Interventions Athletisme',
-    description: 'Modules techniques',
-    reference: 'CTR-2024-004',
-    organization: 'Metro Track Club',
-    organizationSector: 'Athletisme',
-    startDate: '2025-01-01',
-    endDate: '2025-12-31',
-    plannedVolume: '100 h',
-    pricingType: 'Demi-journee',
-    unitPrice: 250,
-    notes: '',
-  },
-  {
-    id: 'ctr-5',
-    name: 'Bien-etre & recuperation',
-    description: 'Ateliers trimestriels',
-    reference: 'CTR-2024-005',
-    organization: 'Horizon Wellness',
-    organizationSector: 'Bien-etre',
-    startDate: '2024-07-01',
-    endDate: '2025-06-30',
-    plannedVolume: '90 h',
-    pricingType: 'Forfait',
-    unitPrice: 1800,
-    notes: '',
-  },
-]
 
 function formatDate(value: string) {
   if (!value) {
@@ -137,26 +62,84 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount)
 }
 
-function getVolumeNumber(volume: string) {
-  const parsed = Number.parseFloat(volume.replace(',', '.'))
+function parseDecimal(value: string) {
+  const parsed = Number.parseFloat(value)
   return Number.isFinite(parsed) ? parsed : 0
 }
 
 export function ContratsPage() {
-  const [contracts, setContracts] = useState<Contract[]>(SEED_CONTRACTS)
+  const queryClient = useQueryClient()
+
+  const { data: contracts = [], isLoading } = useQuery({
+    queryKey: ['contracts'],
+    queryFn: getContracts,
+  })
+
+  const { data: lookups, isLoading: isLoadingLookups } = useQuery({
+    queryKey: ['contract-lookups'],
+    queryFn: getContractLookups,
+  })
+
   const [query, setQuery] = useState('')
   const [organizationFilter, setOrganizationFilter] = useState('all')
-  const [pricingFilter, setPricingFilter] = useState<'all' | PricingType>('all')
+  const [pricingFilter, setPricingFilter] = useState('all')
   const [startDateFilter, setStartDateFilter] = useState('')
   const [endDateFilter, setEndDateFilter] = useState('')
   const [formValues, setFormValues] = useState<ContractFormValues>(EMPTY_FORM)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
-  const [detailContract, setDetailContract] = useState<Contract | null>(null)
+  const [detailContract, setDetailContract] = useState<ContractRecord | null>(null)
   const [formStep, setFormStep] = useState<1 | 2>(1)
 
+  const createMutation = useMutation({
+    mutationFn: createContract,
+    onSuccess: () => {
+      toast.success('Contrat cree.')
+      void queryClient.invalidateQueries({ queryKey: ['contracts'] })
+      closeFormModal()
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error))
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({
+      contractId,
+      payload,
+    }: {
+      contractId: number
+      payload: Partial<UpsertContractPayload>
+    }) => updateContract(contractId, payload),
+    onSuccess: () => {
+      toast.success('Contrat mis a jour.')
+      void queryClient.invalidateQueries({ queryKey: ['contracts'] })
+      closeFormModal()
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error))
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteContract,
+    onSuccess: () => {
+      toast.success('Contrat supprime.')
+      void queryClient.invalidateQueries({ queryKey: ['contracts'] })
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error))
+    },
+  })
+
   const organizationOptions = useMemo(() => {
-    return Array.from(new Set(contracts.map((contract) => contract.organization))).sort((a, b) =>
+    return Array.from(new Set(contracts.map((contract) => contract.institution.name))).sort((a, b) =>
+      a.localeCompare(b),
+    )
+  }, [contracts])
+
+  const pricingOptions = useMemo(() => {
+    return Array.from(new Set(contracts.map((contract) => contract.pricingMode.name))).sort((a, b) =>
       a.localeCompare(b),
     )
   }, [contracts])
@@ -166,15 +149,15 @@ export function ContratsPage() {
     return contracts.filter((contract) => {
       const matchesQuery =
         !normalizedQuery ||
-        contract.name.toLowerCase().includes(normalizedQuery) ||
-        contract.reference.toLowerCase().includes(normalizedQuery) ||
-        contract.organization.toLowerCase().includes(normalizedQuery)
+        contract.contractNumber.toLowerCase().includes(normalizedQuery) ||
+        contract.institution.name.toLowerCase().includes(normalizedQuery) ||
+        contract.pricingMode.name.toLowerCase().includes(normalizedQuery)
 
       const matchesOrganization =
-        organizationFilter === 'all' || contract.organization === organizationFilter
-      const matchesPricing = pricingFilter === 'all' || contract.pricingType === pricingFilter
-      const matchesStartDate = !startDateFilter || contract.startDate >= startDateFilter
-      const matchesEndDate = !endDateFilter || contract.endDate <= endDateFilter
+        organizationFilter === 'all' || contract.institution.name === organizationFilter
+      const matchesPricing = pricingFilter === 'all' || contract.pricingMode.name === pricingFilter
+      const matchesStartDate = !startDateFilter || contract.startDate.slice(0, 10) >= startDateFilter
+      const matchesEndDate = !endDateFilter || contract.endDate.slice(0, 10) <= endDateFilter
 
       return (
         matchesQuery &&
@@ -187,14 +170,17 @@ export function ContratsPage() {
   }, [contracts, endDateFilter, organizationFilter, pricingFilter, query, startDateFilter])
 
   const totalPlannedVolume = useMemo(() => {
-    return contracts.reduce((acc, contract) => acc + getVolumeNumber(contract.plannedVolume), 0)
+    return contracts.reduce((acc, contract) => acc + parseDecimal(contract.hourlyVolumePlanned), 0)
   }, [contracts])
 
   const projectedRevenue = useMemo(() => {
-    return contracts.reduce((acc, contract) => acc + contract.unitPrice, 0)
+    return contracts.reduce((acc, contract) => acc + parseDecimal(contract.unitPrice), 0)
   }, [contracts])
 
-  const uniqueOrganizations = useMemo(() => new Set(contracts.map((contract) => contract.organization)).size, [contracts])
+  const uniqueOrganizations = useMemo(
+    () => new Set(contracts.map((contract) => contract.institution.name)).size,
+    [contracts],
+  )
   const averagePrice = contracts.length ? projectedRevenue / contracts.length : 0
 
   const resetForm = () => {
@@ -213,33 +199,29 @@ export function ContratsPage() {
     setIsFormModalOpen(true)
   }
 
-  const openEditModal = (contract: Contract) => {
+  const openEditModal = (contract: ContractRecord) => {
     setEditingId(contract.id)
     setFormValues({
-      name: contract.name,
-      description: contract.description,
-      reference: contract.reference,
-      organization: contract.organization,
-      organizationSector: contract.organizationSector,
-      startDate: contract.startDate,
-      endDate: contract.endDate,
-      plannedVolume: contract.plannedVolume,
-      pricingType: contract.pricingType,
-      unitPrice: contract.unitPrice,
-      notes: contract.notes,
+      institutionId: contract.institutionId,
+      pricingModeId: contract.pricingModeId,
+      contractNumber: contract.contractNumber,
+      startDate: contract.startDate.slice(0, 10),
+      endDate: contract.endDate.slice(0, 10),
+      hourlyVolumePlanned: parseDecimal(contract.hourlyVolumePlanned),
+      unitPrice: parseDecimal(contract.unitPrice),
     })
     setFormStep(1)
     setIsFormModalOpen(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: number) => {
     const target = contracts.find((contract) => contract.id === id)
     if (!target) {
       return
     }
 
-    if (window.confirm(`Supprimer le contrat "${target.name}" ?`)) {
-      setContracts((previous) => previous.filter((contract) => contract.id !== id))
+    if (window.confirm(`Supprimer le contrat "${target.contractNumber}" ?`)) {
+      deleteMutation.mutate(id)
     }
   }
 
@@ -254,19 +236,21 @@ export function ContratsPage() {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (editingId) {
-      setContracts((previous) =>
-        previous.map((contract) => (contract.id === editingId ? { ...contract, ...formValues } : contract)),
-      )
-    } else {
-      const newContract: Contract = {
-        ...formValues,
-        id: `ctr-${crypto.randomUUID()}`,
-      }
-      setContracts((previous) => [newContract, ...previous])
+    const payload: UpsertContractPayload = {
+      institutionId: formValues.institutionId,
+      pricingModeId: formValues.pricingModeId,
+      contractNumber: formValues.contractNumber.trim(),
+      startDate: formValues.startDate,
+      endDate: formValues.endDate,
+      hourlyVolumePlanned: Number(formValues.hourlyVolumePlanned),
+      unitPrice: Number(formValues.unitPrice),
     }
 
-    closeFormModal()
+    if (editingId) {
+      updateMutation.mutate({ contractId: editingId, payload })
+    } else {
+      createMutation.mutate(payload)
+    }
   }
 
   return (
@@ -277,7 +261,7 @@ export function ContratsPage() {
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
           <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight">Contrats</h1>
+                <h1 className="text-3xl font-semibold tracking-tight">Contrats</h1>
               <p className="mt-2 max-w-2xl text-sm text-[#B8C5D0]">
                 Gerez les contrats d&apos;intervention avec les organisations.
               </p>
@@ -294,6 +278,7 @@ export function ContratsPage() {
               <button
                 type="button"
                 onClick={openCreateModal}
+                disabled={isLoadingLookups || !lookups}
                 className="inline-flex items-center gap-2 rounded-md bg-[#1ABC9C] px-4 py-2.5 text-sm font-semibold text-[#020F1F] transition hover:bg-[#16A085]"
               >
                 <FiPlus className="h-4 w-4" aria-hidden="true" />
@@ -387,11 +372,11 @@ export function ContratsPage() {
 
               <select
                 value={pricingFilter}
-                onChange={(event) => setPricingFilter(event.target.value as 'all' | PricingType)}
+                onChange={(event) => setPricingFilter(event.target.value)}
                 className="rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] outline-none transition focus:border-[#1ABC9C]"
               >
                 <option value="all">Tous les types</option>
-                {PRICING_OPTIONS.map((option) => (
+                {pricingOptions.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
@@ -424,81 +409,88 @@ export function ContratsPage() {
           </section>
 
           <section className="rounded-lg border border-[#1F3A52] bg-[#0F2B44]">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-[#1F3A52] text-left">
-                <thead className="bg-[#0A2236] text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8FA3B8]">
-                  <tr>
-                    <th className="px-4 py-3">Contrat</th>
-                    <th className="px-4 py-3">Reference</th>
-                    <th className="px-4 py-3">Organisation</th>
-                    <th className="px-4 py-3">Periode</th>
-                    <th className="px-4 py-3">Volume prevu</th>
-                    <th className="px-4 py-3">Tarification</th>
-                    <th className="px-4 py-3">Prix unitaire</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-[#1F3A52] text-sm">
-                  {filteredContracts.length === 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center py-14">
+                <TailSpin height={40} width={40} color="#1ABC9C" ariaLabel="Chargement" />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-[#1F3A52] text-left">
+                  <thead className="bg-[#0A2236] text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8FA3B8]">
                     <tr>
-                      <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#8FA3B8]">
-                        Aucun contrat ne correspond aux filtres actifs.
-                      </td>
+                      <th className="px-4 py-3">Contrat</th>
+                      <th className="px-4 py-3">Reference</th>
+                      <th className="px-4 py-3">Organisation</th>
+                      <th className="px-4 py-3">Periode</th>
+                      <th className="px-4 py-3">Volume prevu</th>
+                      <th className="px-4 py-3">Tarification</th>
+                      <th className="px-4 py-3">Prix unitaire</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
-                  ) : (
-                    filteredContracts.map((contract) => (
-                      <tr key={contract.id} className="transition hover:bg-[#12324D]">
-                        <td className="px-4 py-3">
-                          <p className="font-semibold text-[#E6EDF3]">{contract.name}</p>
-                          <p className="mt-1 text-xs text-[#8FA3B8]">{contract.description}</p>
-                        </td>
-                        <td className="px-4 py-3 text-[#B8C5D0]">{contract.reference}</td>
-                        <td className="px-4 py-3">
-                          <p className="text-[#E6EDF3]">{contract.organization}</p>
-                          <p className="mt-1 text-xs text-[#8FA3B8]">{contract.organizationSector}</p>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-[#B8C5D0]">
-                          <p>{formatDate(contract.startDate)}</p>
-                          <p className="mt-1">{formatDate(contract.endDate)}</p>
-                        </td>
-                        <td className="px-4 py-3 text-[#B8C5D0]">{contract.plannedVolume}</td>
-                        <td className="px-4 py-3 text-[#B8C5D0]">{contract.pricingType}</td>
-                        <td className="px-4 py-3 text-[#E6EDF3]">{formatCurrency(contract.unitPrice)}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setDetailContract(contract)}
-                              aria-label={`Voir le detail de ${contract.name}`}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#2A4A66] bg-[#0A2236] text-[#B8C5D0] transition hover:border-[#1ABC9C] hover:text-[#1ABC9C]"
-                            >
-                              <FiEye className="h-4 w-4" aria-hidden="true" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openEditModal(contract)}
-                              aria-label={`Modifier ${contract.name}`}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#2A4A66] bg-[#0A2236] text-[#B8C5D0] transition hover:border-[#1ABC9C] hover:text-[#1ABC9C]"
-                            >
-                              <FiEdit2 className="h-4 w-4" aria-hidden="true" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(contract.id)}
-                              aria-label={`Supprimer ${contract.name}`}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#E74C3C]/40 bg-[#E74C3C]/10 text-[#E74C3C] transition hover:bg-[#E74C3C]/20"
-                            >
-                              <FiTrash2 className="h-4 w-4" aria-hidden="true" />
-                            </button>
-                          </div>
+                  </thead>
+
+                  <tbody className="divide-y divide-[#1F3A52] text-sm">
+                    {filteredContracts.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#8FA3B8]">
+                          Aucun contrat ne correspond aux filtres actifs.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      filteredContracts.map((contract) => (
+                        <tr key={contract.id} className="transition hover:bg-[#12324D]">
+                          <td className="px-4 py-3">
+                            <p className="font-semibold text-[#E6EDF3]">{contract.contractNumber}</p>
+                            <p className="mt-1 text-xs text-[#8FA3B8]">ID #{contract.id}</p>
+                          </td>
+                          <td className="px-4 py-3 text-[#B8C5D0]">{contract.contractNumber}</td>
+                          <td className="px-4 py-3 text-[#E6EDF3]">{contract.institution.name}</td>
+                          <td className="px-4 py-3 text-xs text-[#B8C5D0]">
+                            <p>{formatDate(contract.startDate)}</p>
+                            <p className="mt-1">{formatDate(contract.endDate)}</p>
+                          </td>
+                          <td className="px-4 py-3 text-[#B8C5D0]">
+                            {parseDecimal(contract.hourlyVolumePlanned)} h
+                          </td>
+                          <td className="px-4 py-3 text-[#B8C5D0]">{contract.pricingMode.name}</td>
+                          <td className="px-4 py-3 text-[#E6EDF3]">
+                            {formatCurrency(parseDecimal(contract.unitPrice))}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setDetailContract(contract)}
+                                aria-label={`Voir le detail de ${contract.contractNumber}`}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#2A4A66] bg-[#0A2236] text-[#B8C5D0] transition hover:border-[#1ABC9C] hover:text-[#1ABC9C]"
+                              >
+                                <FiEye className="h-4 w-4" aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(contract)}
+                                aria-label={`Modifier ${contract.contractNumber}`}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#2A4A66] bg-[#0A2236] text-[#B8C5D0] transition hover:border-[#1ABC9C] hover:text-[#1ABC9C]"
+                              >
+                                <FiEdit2 className="h-4 w-4" aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(contract.id)}
+                                aria-label={`Supprimer ${contract.contractNumber}`}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#E74C3C]/40 bg-[#E74C3C]/10 text-[#E74C3C] transition hover:bg-[#E74C3C]/20"
+                              >
+                                <FiTrash2 className="h-4 w-4" aria-hidden="true" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         </div>
       </main>
@@ -514,13 +506,15 @@ export function ContratsPage() {
             <>
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-[#1ABC9C]">
-                  Nom du contrat
+                  Reference contrat
                 </span>
                 <input
-                  value={formValues.name}
-                  onChange={(event) => setFormValues((previous) => ({ ...previous, name: event.target.value }))}
+                  value={formValues.contractNumber}
+                  onChange={(event) =>
+                    setFormValues((previous) => ({ ...previous, contractNumber: event.target.value }))
+                  }
                   required
-                  placeholder="Ex: Interventions Marketing M1"
+                  placeholder="CTR-2024-001"
                   className="w-full rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] placeholder:text-[#5F7389] outline-none transition focus:border-[#1ABC9C] focus:ring-2 focus:ring-[#1ABC9C]/35"
                 />
               </label>
@@ -528,47 +522,52 @@ export function ContratsPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-[#1ABC9C]">
-                    Reference contrat
+                    Organisation liee
                   </span>
-                  <input
-                    value={formValues.reference}
+                  <select
+                    value={formValues.institutionId || ''}
                     onChange={(event) =>
-                      setFormValues((previous) => ({ ...previous, reference: event.target.value }))
+                      setFormValues((previous) => ({
+                        ...previous,
+                        institutionId: Number(event.target.value),
+                      }))
                     }
-                    placeholder="CTR-2024-001"
-                    className="w-full rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] placeholder:text-[#5F7389] outline-none transition focus:border-[#1ABC9C] focus:ring-2 focus:ring-[#1ABC9C]/35"
-                  />
+                    required
+                    className="w-full rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] outline-none transition focus:border-[#1ABC9C]"
+                  >
+                    <option value="">Selectionner...</option>
+                    {(lookups?.institutions ?? []).map((institution) => (
+                      <option key={institution.id} value={institution.id}>
+                        {institution.name}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-[#1ABC9C]">
-                    Organisation liee
+                    Type de tarification
                   </span>
-                  <input
-                    value={formValues.organization}
+                  <select
+                    value={formValues.pricingModeId || ''}
                     onChange={(event) =>
-                      setFormValues((previous) => ({ ...previous, organization: event.target.value }))
+                      setFormValues((previous) => ({
+                        ...previous,
+                        pricingModeId: Number(event.target.value),
+                      }))
                     }
                     required
-                    placeholder="Ex: Spartan Athletics"
-                    className="w-full rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] placeholder:text-[#5F7389] outline-none transition focus:border-[#1ABC9C] focus:ring-2 focus:ring-[#1ABC9C]/35"
-                  />
+                    className="w-full rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] outline-none transition focus:border-[#1ABC9C]"
+                  >
+                    <option value="">Selectionner...</option>
+                    {(lookups?.pricingModes ?? []).map((pricingMode) => (
+                      <option key={pricingMode.id} value={pricingMode.id}>
+                        {pricingMode.name}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
-
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-[#1ABC9C]">
-                  Description courte
-                </span>
-                <input
-                  value={formValues.description}
-                  onChange={(event) =>
-                    setFormValues((previous) => ({ ...previous, description: event.target.value }))
-                  }
-                  placeholder="Programme, niveau, public cible..."
-                  className="w-full rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] placeholder:text-[#5F7389] outline-none transition focus:border-[#1ABC9C] focus:ring-2 focus:ring-[#1ABC9C]/35"
-                />
-              </label>
             </>
           ) : null}
 
@@ -612,36 +611,20 @@ export function ContratsPage() {
                     Volume prevu
                   </span>
                   <input
-                    value={formValues.plannedVolume}
-                    onChange={(event) =>
-                      setFormValues((previous) => ({ ...previous, plannedVolume: event.target.value }))
-                    }
-                    placeholder="Ex: 120 h"
-                    className="w-full rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] outline-none transition focus:border-[#1ABC9C] focus:ring-2 focus:ring-[#1ABC9C]/35"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-[#1ABC9C]">
-                    Type de tarification
-                  </span>
-                  <select
-                    value={formValues.pricingType}
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={formValues.hourlyVolumePlanned}
                     onChange={(event) =>
                       setFormValues((previous) => ({
                         ...previous,
-                        pricingType: event.target.value as PricingType,
+                        hourlyVolumePlanned: Number(event.target.value) || 0,
                       }))
                     }
+                    placeholder="Ex: 120"
                     required
-                    className="w-full rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] outline-none transition focus:border-[#1ABC9C]"
-                  >
-                    {PRICING_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                    className="w-full rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] outline-none transition focus:border-[#1ABC9C] focus:ring-2 focus:ring-[#1ABC9C]/35"
+                  />
                 </label>
 
                 <label className="block">
@@ -664,35 +647,6 @@ export function ContratsPage() {
                   />
                 </label>
               </div>
-
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-[#1ABC9C]">
-                  Secteur organisation
-                </span>
-                <input
-                  value={formValues.organizationSector}
-                  onChange={(event) =>
-                    setFormValues((previous) => ({ ...previous, organizationSector: event.target.value }))
-                  }
-                  placeholder="Ex: Performance sportive"
-                  className="w-full rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] outline-none transition focus:border-[#1ABC9C] focus:ring-2 focus:ring-[#1ABC9C]/35"
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-[#1ABC9C]">
-                  Remarques
-                </span>
-                <textarea
-                  value={formValues.notes}
-                  onChange={(event) =>
-                    setFormValues((previous) => ({ ...previous, notes: event.target.value }))
-                  }
-                  rows={3}
-                  placeholder="Informations complementaires..."
-                  className="w-full rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] placeholder:text-[#5F7389] outline-none transition focus:border-[#1ABC9C] focus:ring-2 focus:ring-[#1ABC9C]/35"
-                />
-              </label>
             </>
           ) : null}
 
@@ -728,6 +682,7 @@ export function ContratsPage() {
             ) : (
               <button
                 type="submit"
+                disabled={createMutation.isPending || updateMutation.isPending}
                 className="inline-flex items-center gap-2 rounded-md bg-[#1ABC9C] px-4 py-2.5 text-sm font-semibold text-[#020F1F] transition hover:bg-[#16A085]"
               >
                 <FiPlus className="h-4 w-4" aria-hidden="true" />
@@ -741,17 +696,18 @@ export function ContratsPage() {
       <Modal
         open={Boolean(detailContract)}
         onClose={() => setDetailContract(null)}
-        title={detailContract ? detailContract.name : 'Detail contrat'}
+        title={detailContract ? detailContract.contractNumber : 'Detail contrat'}
         description="Apercu detaille du contrat selectionne."
       >
         {detailContract ? (
           <div className="space-y-3 text-sm text-[#B8C5D0]">
             <p>
-              <span className="font-semibold text-[#E6EDF3]">Reference :</span> {detailContract.reference}
+              <span className="font-semibold text-[#E6EDF3]">Reference :</span>{' '}
+              {detailContract.contractNumber}
             </p>
             <p>
               <span className="font-semibold text-[#E6EDF3]">Organisation :</span>{' '}
-              {detailContract.organization}
+              {detailContract.institution.name}
             </p>
             <p>
               <span className="font-semibold text-[#E6EDF3]">Periode :</span>{' '}
@@ -759,19 +715,11 @@ export function ContratsPage() {
             </p>
             <p>
               <span className="font-semibold text-[#E6EDF3]">Tarification :</span>{' '}
-              {detailContract.pricingType} ({formatCurrency(detailContract.unitPrice)})
+              {detailContract.pricingMode.name} ({formatCurrency(parseDecimal(detailContract.unitPrice))})
             </p>
             <p>
               <span className="font-semibold text-[#E6EDF3]">Volume prevu :</span>{' '}
-              {detailContract.plannedVolume}
-            </p>
-            <p>
-              <span className="font-semibold text-[#E6EDF3]">Description :</span>{' '}
-              {detailContract.description || 'Aucune'}
-            </p>
-            <p>
-              <span className="font-semibold text-[#E6EDF3]">Remarques :</span>{' '}
-              {detailContract.notes || 'Aucune'}
+              {parseDecimal(detailContract.hourlyVolumePlanned)} h
             </p>
           </div>
         ) : null}

@@ -23,11 +23,19 @@ export async function createInstitution(payload: UpsertInstitutionPayload) {
   return response.data
 }
 
-export async function updateInstitution(id: number, payload: UpsertInstitutionPayload) {
-  const response = await apiClient.patch<Institution>(`/institutions/${id}`, payload)
+export async function updateInstitution(
+  institutionId: number,
+  payload: UpsertInstitutionPayload,
+) {
+  const response = await apiClient.patch<Institution>('/institutions', {
+    institutionId,
+    ...payload,
+  })
   return response.data
 }
 
-export async function deleteInstitution(id: number) {
-  await apiClient.delete(`/institutions/${id}`)
+export async function deleteInstitution(institutionId: number) {
+  await apiClient.delete('/institutions', {
+    data: { institutionId },
+  })
 }
