@@ -36,8 +36,8 @@ type ContractFormValues = {
   contractNumber: string
   startDate: string
   endDate: string
-  hourlyVolumePlanned: number
-  unitPrice: number
+  hourlyVolumePlanned: string
+  unitPrice: string
 }
 
 const EMPTY_FORM: ContractFormValues = {
@@ -46,16 +46,19 @@ const EMPTY_FORM: ContractFormValues = {
   contractNumber: '',
   startDate: '',
   endDate: '',
-  hourlyVolumePlanned: 0,
-  unitPrice: 0,
+  hourlyVolumePlanned: '',
+  unitPrice: '',
 }
 
 function formatDate(value: string) {
   if (!value) {
     return '-'
   }
-  const date = new Date(`${value}T00:00:00`)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('fr-FR')
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10)
+  }
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toISOString().slice(0, 10)
 }
 
 function formatCurrency(amount: number) {
@@ -207,8 +210,8 @@ export function ContratsPage() {
       contractNumber: contract.contractNumber,
       startDate: contract.startDate.slice(0, 10),
       endDate: contract.endDate.slice(0, 10),
-      hourlyVolumePlanned: parseDecimal(contract.hourlyVolumePlanned),
-      unitPrice: parseDecimal(contract.unitPrice),
+      hourlyVolumePlanned: String(parseDecimal(contract.hourlyVolumePlanned)),
+      unitPrice: String(parseDecimal(contract.unitPrice)),
     })
     setFormStep(1)
     setIsFormModalOpen(true)
@@ -618,7 +621,7 @@ export function ContratsPage() {
                     onChange={(event) =>
                       setFormValues((previous) => ({
                         ...previous,
-                        hourlyVolumePlanned: Number(event.target.value) || 0,
+                        hourlyVolumePlanned: event.target.value,
                       }))
                     }
                     placeholder="Ex: 120"
@@ -639,9 +642,10 @@ export function ContratsPage() {
                     onChange={(event) =>
                       setFormValues((previous) => ({
                         ...previous,
-                        unitPrice: Number(event.target.value) || 0,
+                        unitPrice: event.target.value,
                       }))
                     }
+                    placeholder="Ex: 65"
                     required
                     className="w-full rounded-md border border-[#2A4A66] bg-[#0A2236] px-3 py-2.5 text-sm text-[#E6EDF3] outline-none transition focus:border-[#1ABC9C] focus:ring-2 focus:ring-[#1ABC9C]/35"
                   />
