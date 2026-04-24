@@ -46,6 +46,7 @@ Application full-stack pour le suivi et la gestion d’activités côté formate
    npm install
    npx prisma migrate dev
    npx prisma generate
+   npx prisma db seed 
    npm run start:dev
    ```
 
