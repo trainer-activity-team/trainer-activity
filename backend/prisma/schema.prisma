@@ -1,9 +1,9 @@
-datasource db {
-  provider = "postgresql"
-}
-
 generator client {
   provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
 }
 
 model Role {
@@ -15,14 +15,15 @@ model Role {
 }
 
 model User {
-  id        Int            @id @default(autoincrement()) @map("user_id")
-  email     String         @unique
-  password  String
-  roleId    Int            @map("fk_role_id")
-  firstName String         @map("first_name")
-  lastName  String         @map("last_name")
-  role      Role           @relation(fields: [roleId], references: [id])
+  id            Int            @id @default(autoincrement()) @map("user_id")
+  email         String         @unique
+  password      String
+  roleId        Int            @map("fk_role_id")
+  firstName     String         @map("first_name")
+  lastName      String         @map("last_name")
   interventions Intervention[]
+  role          Role           @relation(fields: [roleId], references: [id])
+  classes       Class[]
 
   @@map("Users")
 }
@@ -53,6 +54,8 @@ model Class {
   classLevel    String         @map("class_level")
   studentCount  Int            @map("student_count")
   name          String
+  teacherId     Int            @map("fk_teacher_id")
+  teacher       User           @relation(fields: [teacherId], references: [id])
   institution   Institution    @relation(fields: [institutionId], references: [id])
   interventions Intervention[]
 
@@ -119,30 +122,30 @@ model Invoice {
 }
 
 model Intervention {
-  id                  Int              @id @default(autoincrement()) @map("intervention_id")
-  subjectId           Int              @map("fk_subject_id")
-  classId             Int              @map("fk_class_id")
-  institutionId       Int              @map("fk_institution_id")
-  contractId          Int              @map("fk_contract_id")
-  statusId            Int              @map("fk_status_id")
-  userId              Int              @map("fk_user_id")
-  invoiceId           Int?             @map("fk_invoice_id")
-  interventionTypeId  Int              @map("fk_intervention_type_id")
-  timescaleId         Int              @map("fk_timescale_id")
-  date                DateTime         @db.Date
-  start               DateTime         @db.Time(6)
-  end                 DateTime         @db.Time(6)
-  declarationReference String?         @map("declaration_reference")
-  declarationDate     DateTime?        @map("declaration_date") @db.Date
-  subject             Subject          @relation(fields: [subjectId], references: [id])
-  class               Class            @relation(fields: [classId], references: [id])
-  institution         Institution      @relation(fields: [institutionId], references: [id])
-  contract            Contract         @relation(fields: [contractId], references: [id])
-  statusRelation      Status           @relation(fields: [statusId], references: [id])
-  user                User             @relation(fields: [userId], references: [id])
-  invoice             Invoice?         @relation(fields: [invoiceId], references: [id])
-  interventionType    InterventionType @relation(fields: [interventionTypeId], references: [id])
-  timescale           Timescale        @relation(fields: [timescaleId], references: [id])
+  id                   Int              @id @default(autoincrement()) @map("intervention_id")
+  subjectId            Int              @map("fk_subject_id")
+  classId              Int              @map("fk_class_id")
+  institutionId        Int              @map("fk_institution_id")
+  contractId           Int              @map("fk_contract_id")
+  statusId             Int              @map("fk_status_id")
+  userId               Int              @map("fk_user_id")
+  invoiceId            Int?             @map("fk_invoice_id")
+  interventionTypeId   Int              @map("fk_intervention_type_id")
+  timescaleId          Int              @map("fk_timescale_id")
+  date                 DateTime         @db.Date
+  start                DateTime         @db.Time(6)
+  end                  DateTime         @db.Time(6)
+  declarationReference String?          @map("declaration_reference")
+  declarationDate      DateTime?        @map("declaration_date") @db.Date
+  class                Class            @relation(fields: [classId], references: [id])
+  contract             Contract         @relation(fields: [contractId], references: [id])
+  institution          Institution      @relation(fields: [institutionId], references: [id])
+  interventionType     InterventionType @relation(fields: [interventionTypeId], references: [id])
+  invoice              Invoice?         @relation(fields: [invoiceId], references: [id])
+  statusRelation       Status           @relation(fields: [statusId], references: [id])
+  subject              Subject          @relation(fields: [subjectId], references: [id])
+  timescale            Timescale        @relation(fields: [timescaleId], references: [id])
+  user                 User             @relation(fields: [userId], references: [id])
 
   @@map("Interventions")
 }
