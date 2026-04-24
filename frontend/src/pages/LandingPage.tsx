@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 
 type StoredUser = {
   firstName?: string
@@ -27,6 +28,12 @@ export function LandingPage() {
         <p className="mt-3 text-sm text-[#B8C5D0]">
           {userFullName ? `Welcome ${userFullName}, login succeeded.` : 'You are now authenticated.'}
         </p>
+        <Link
+          to="/organizations"
+          className="mt-6 inline-flex rounded-md bg-[#1ABC9C] px-4 py-2 text-sm font-semibold text-[#031522] transition hover:bg-[#17A88C]"
+        >
+          Ouvrir la gestion des organisations
+        </Link>
       </section>
     </main>
   )
